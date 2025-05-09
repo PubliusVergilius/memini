@@ -2,6 +2,7 @@ package notebooks
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -12,16 +13,37 @@ type NoteStore interface {
 }
 
 type NotebookServer struct {
-	store NoteStore
+	Store NoteStore
 }
 
-func (n *NotebookServer) ServerHTTP(w http.ResponseWriter, r *http.Request) {
-	noteId := strings.TrimPrefix(r.URL.Path, "/notes/")
-	note := n.store.GetNoteById(noteId)
+func setStatusCode (w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+		case http.MethodGet:
+		case http.MethodPost:
+			w.WriteHeader(http.StatusAccepted)
+	}
 
-	if note == "" {
-		w.WriteHeader(http.StatusNotFound)
+	
+}
+
+func (n *NotebookServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	/** Post note */
+	if(r.Method == http.MethodPost) {
+		log.Println("---POST accepted")
+		w.WriteHeader(http.StatusAccepted)
+	}
+
+	/** Get note */
+	if(r.Method == http.MethodGet) {
+		/** Find note by ID */
+		noteId := strings.TrimPrefix(r.URL.Path, "/notes/")
+		note := n.Store.GetNoteById(noteId)
+
+		if note == "" {
+			w.WriteHeader(http.StatusNotFound)
+		}
 	}
 
 	fmt.Fprint(w, "error test")
+
 }

@@ -56,11 +56,27 @@ func TestGETNotebooks (t *testing.T) {
 			request := newGetNoteRequest(tt.noteId)
 			response := httptest.NewRecorder()
 
-			server.ServerHTTP(response, request)
+			server.ServeHTTP(response, request)
 
 			assertStatus(t, response.Code, tt.expectedHTTPStatus)
 		})
 	}
+}
+
+func TestPOSTNotebook (t *testing.T) {
+	store := StubNotebookStore{
+		map[string]string{},
+	}
+	server := &NotebookServer{&store}
+
+	t.Run("it returns accepted on POST", func(t *testing.T) {
+		request, _ := http.NewRequest(http.MethodPost, "/post", nil)
+		response := httptest.NewRecorder()
+
+		server.ServeHTTP(response, request)
+
+		assertStatus(t, response.Code, http.StatusAccepted)
+	})
 }
 
 func assertStatus(t testing.TB, got, want int) {
