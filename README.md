@@ -1,0 +1,2 @@
+# memini
+Notebooks fullstack applicaition
