@@ -16,6 +16,10 @@ func (s *StubNotebookStore) GetNoteById(id string) string {
 	return note
 }
 
+func (s *StubNotebookStore) SaveNote(note string) {
+	s.notes["1"] = note
+}
+
 func TestGETNotebooks (t *testing.T) {
 	store := StubNotebookStore{
 		map[string]string{
@@ -70,12 +74,21 @@ func TestPOSTNotebook (t *testing.T) {
 	server := &NotebookServer{&store}
 
 	t.Run("it returns accepted on POST", func(t *testing.T) {
+		note := "teste 1"
 		request, _ := http.NewRequest(http.MethodPost, "/post", nil)
 		response := httptest.NewRecorder()
 
 		server.ServeHTTP(response, request)
 
 		assertStatus(t, response.Code, http.StatusAccepted)
+
+		if len(store.notes) != 1 {
+			t.Fatalf("got %d notes, want %d", len(store.notes), 1)
+		}
+
+		if store.notes["1"] != note {
+			t.Errorf("did not store correnct note: got %q want %q", store.notes["¹1"], note)
+		}
 	})
 }
 
