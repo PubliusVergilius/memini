@@ -2,45 +2,41 @@ package notebooks
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strings"
 )
 
 // NoteStore stores notes
+type Note string
+type ID string
 
 type NoteStore interface {
-	GetNoteById(id string) string
-	SaveNote(note string)
+	GetNoteById(id ID) Note
+	SaveNote(note Note)
 }
 
 type NotebookServer struct {
 	Store NoteStore
 }
 
-func setStatusCode (w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-		case http.MethodGet:
-		case http.MethodPost:
-			w.WriteHeader(http.StatusAccepted)
-	}
-
-	
-}
-
 func (n *NotebookServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	noteId := strings.TrimPrefix(r.URL.Path, "/notes/")
+
 	switch r.Method {
 	case http.MethodGet:
-		n.showNote(w, r)
+		n.showNote(w, ID(noteId))
 	case http.MethodPost:
-		n.addNote(w)
+		bodyBytes := readBody(w, r)
+
+		n.addNote(w, Note(bodyBytes))
 	}
 
 }
 
-func (n *NotebookServer) showNote (w http.ResponseWriter, r *http.Request) {
+func (n *NotebookServer) showNote (w http.ResponseWriter, noteId ID) {
 	/** Find note by ID */
-	noteId := strings.TrimPrefix(r.URL.Path, "/notes/")
 	note := n.Store.GetNoteById(noteId)
 
 	if note == "" {
@@ -51,9 +47,29 @@ func (n *NotebookServer) showNote (w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (n *NotebookServer) addNote (w http.ResponseWriter) {
-	log.Println("---POST accepted")
-	n.Store.SaveNote("teste 1")
+func (n *NotebookServer) addNote (w http.ResponseWriter, note Note) {
+	log.Println("--- POST accepted ---")
+	n.Store.SaveNote(note)
 	w.WriteHeader(http.StatusAccepted)
 }
 
+func readBody (w http.ResponseWriter ,r *http.Request) []byte {
+	if r.Body == nil {
+		http.Error(w, "Request body is empty", http.StatusBadRequest)	
+		return nil
+	}
+
+	bodyBytes, err := io.ReadAll(r.Body)
+
+	if err != nil {
+		errorMessage := "Unable to read body"
+		// Client error
+		http.Error(w, errorMessage, http.StatusInternalServerError)
+		// Server log error
+		log.Printf("%s: %s", errorMessage, err.Error())
+
+		return nil 
+	}
+	defer r.Body.Close()
+	return bodyBytes
+}
