@@ -5,11 +5,12 @@ import (
 	"log"
 	"net/http"
 	"notebooks/notebooks"
+	"strings"
 )
 
-func main () {
+func main() {
 	port := ":5000"
-	fmt.Printf("Listen on port %s", port)
-	handler := http.HandlerFunc(notebooks.NotebooksServer)
-	log.Fatal(http.ListenAndServe(port , handler))
+	fmt.Printf("Listen on port %s", strings.TrimPrefix(port, ":"))
+	server := &notebooks.NotebookServer{Store: notebooks.NewInMemoryNotebookStore()}
+	log.Fatal(http.ListenAndServe(port, server))
 }
