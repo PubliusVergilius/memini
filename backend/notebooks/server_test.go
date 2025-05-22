@@ -86,23 +86,15 @@ func TestGETNotebooks(t *testing.T) {
 	})
 }
 
-func TestPOSTNotebook(t *testing.T) {
+func TestPOSTNewNote(t *testing.T) {
 
 	store := NewInMemoryNotebookStore()
 	server := NewNotebookServer(store)
 
 	t.Run("Store a new note on /notes and return accepted status", func(t *testing.T) {
-		var note Note = Note{ID: "1", Body: "teste 1", UsernameID: "1"}
-		jsonNote, err := json.Marshal(note)
-		if err != nil {
-			t.Fatalf("Error marshaling JSON: %v\n", err)
-		}
+		note := Note{ID: "1", Body: "teste 1", UsernameID: "1"}
 
-		reqBody := bytes.NewBuffer(jsonNote)
-
-		request, _ := http.NewRequest(http.MethodPost, "/notes", reqBody)
-		request.Header.Set("Content-Type", "application/json")
-
+		request := storeNewNote(t, note)
 		response := httptest.NewRecorder()
 
 		server.ServeHTTP(response, request)
@@ -149,6 +141,20 @@ func assertStatus(t testing.TB, got, want int) {
 	if got != want {
 		t.Errorf("did not get correct status, got %d, want %d", got, want)
 	}
+}
+
+func storeNewNote(t *testing.T, note Note) *http.Request {
+	jsonNote, err := json.Marshal(note)
+	if err != nil {
+		t.Fatalf("Error marshaling JSON: %v\n", err)
+	}
+
+	reqBody := bytes.NewBuffer(jsonNote)
+
+	request, _ := http.NewRequest(http.MethodPost, "/notes", reqBody)
+	request.Header.Set("Content-Type", "application/json")
+
+	return request
 }
 
 func getProfileFromResponse(t testing.TB, body io.Reader) (profile []Profile) {
