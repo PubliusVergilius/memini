@@ -1,18 +1,20 @@
 package notebooks
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 )
 
-
-func TestGETNotebooks (t *testing.T) {
+func TestGETNotebooks(t *testing.T) {
 	t.Run("get from in memory notebook store", func(t *testing.T) {
-		store :=  NewInMemoryNotebookStore()
-		server := &NotebookServer{store}
+		store := NewInMemoryNotebookStore()
+		server := NewNotebookServer(store)
 		store.Notes["1"] = "teste 1"
 		store.Notes["2"] = "teste 2"
 
@@ -23,22 +25,22 @@ func TestGETNotebooks (t *testing.T) {
 			expectedNote       Note
 		}{
 			{
-				testName: "Returns first note",
-				noteId: "1",
+				testName:           "Returns first note",
+				noteId:             "1",
 				expectedHTTPStatus: http.StatusOK,
-				expectedNote: "teste 1",
+				expectedNote:       "teste 1",
 			},
 			{
-				testName: "Returns second note",
-				noteId: "2",
+				testName:           "Returns second note",
+				noteId:             "2",
 				expectedHTTPStatus: http.StatusOK,
-				expectedNote: "teste 2",
+				expectedNote:       "teste 2",
 			},
 			{
-				testName: "Returns 404 on misssing note",
-				noteId: "3",
+				testName:           "Returns 404 on misssing note",
+				noteId:             "3",
 				expectedHTTPStatus: http.StatusNotFound,
-				expectedNote: "",
+				expectedNote:       "",
 			},
 		}
 
@@ -53,14 +55,13 @@ func TestGETNotebooks (t *testing.T) {
 			})
 		}
 	})
-	
 
 	t.Run("get all in plain text from in memory store", func(t *testing.T) {
 		store := NewInMemoryNotebookStore()
 		store.Notes["1"] = "teste 1"
 		store.Notes["2"] = "teste 2"
 
-		server := &NotebookServer{store}
+		server := NewNotebookServer(store)
 
 		request, _ := http.NewRequest("GET", "/notes", nil)
 		response := httptest.NewRecorder()
@@ -74,10 +75,10 @@ func TestGETNotebooks (t *testing.T) {
 	})
 }
 
-func TestPOSTNotebook (t *testing.T) {
-	
+func TestPOSTNotebook(t *testing.T) {
+
 	store := NewInMemoryNotebookStore()
-	server := &NotebookServer{store}
+	server := NewNotebookServer(store)
 
 	t.Run("it returns accepted on POST a save one", func(t *testing.T) {
 		var note Note = "teste 1"
@@ -118,10 +119,52 @@ func TestPOSTNotebook (t *testing.T) {
 	})
 }
 
+func TestGETProfile(t *testing.T) {
+	/*
+	 */
+	store := NewInMemoryNotebookStore()
+	server := NewNotebookServer(store)
+	t.Run("it returnts 200 on /profile/", func(t *testing.T) {
+		request, _ := http.NewRequest("get", "/profile", nil)
+		response := httptest.NewRecorder()
+
+		server.ServeHTTP(response, request)
+
+		got := getProfileFromResponse(t, response.Body)
+		want := []Profile{
+			{
+				ID:       "1",
+				Username: "Vini",
+			},
+		}
+
+		assertStatus(t, response.Code, http.StatusOK)
+		assertProfiles(t, got, want)
+	})
+}
+
 func assertStatus(t testing.TB, got, want int) {
 	t.Helper()
 	if got != want {
 		t.Errorf("did not get correct status, got %d, want %d", got, want)
+	}
+}
+
+func getProfileFromResponse(t testing.TB, body io.Reader) (profile []Profile) {
+	t.Helper()
+	err := json.NewDecoder(body).Decode(&profile)
+
+	if err != nil {
+		t.Fatalf("Unable to parse response from server %q into slice of Player, '%v'", body, err)
+	}
+
+	return
+}
+
+func assertProfiles(t testing.TB, got, want []Profile) {
+	t.Helper()
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v want %v", got, want)
 	}
 }
 
@@ -135,15 +178,14 @@ func newPostNotebookRequest(_ Note) *http.Request {
 	return req
 }
 
-func assertResponseBody(t testing.TB, got, want string){
+func assertResponseBody(t testing.TB, got, want string) {
 	t.Helper()
 	if got != want {
 		t.Fatalf("response body is wrong, got %q want %q", got, want)
 	}
 }
 
-func assertNotError (t testing.TB, err error) {
+func assertNotError(t testing.TB, err error) {
 	t.Helper()
 	t.Fatalf("was not told to error: %s", err.Error())
 }
-
