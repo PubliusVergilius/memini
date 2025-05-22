@@ -12,8 +12,13 @@ import (
 
 /**************** Server ******************/
 // NoteStore stores notes
-type Note string
 type ID string
+
+type Note struct {
+	ID         ID     `json:"id"`
+	Body       string `json:"body"`
+	UsernameID ID     `json:"username_id"`
+}
 
 type Profile struct {
 	ID       ID     `json:"id"`
@@ -24,6 +29,7 @@ type NoteStore interface {
 	GetAllNotes() []Note
 	GetNoteById(id ID) Note
 	SaveNote(note Note)
+	GetProfilesByUsername(username string) []Profile
 }
 
 type NotebookServer struct {
@@ -76,8 +82,10 @@ func (n *NotebookServer) notesHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case http.MethodPost:
-		bodyBytes := readBody(w, r)
-		n.addNote(w, Note(bodyBytes))
+		decoder := json.NewDecoder(r.Body)
+		newNote := Note{}
+		decoder.Decode(&newNote)
+		n.addNote(w, newNote)
 	}
 }
 
@@ -98,12 +106,8 @@ func (n *NotebookServer) profileHandler(w http.ResponseWriter, r *http.Request) 
 
 /******* Profile *******/
 func (n *NotebookServer) getProfileTable() []Profile {
-	profileTable := []Profile{
-		{
-			ID:       "1",
-			Username: "Vini",
-		},
-	}
+	profileTable := n.Store.GetProfilesByUsername("Vini")
+
 	return profileTable
 }
 
@@ -111,33 +115,26 @@ func (n *NotebookServer) getProfileTable() []Profile {
 func (n *NotebookServer) showAllNotes(w http.ResponseWriter) {
 
 	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type", "text/plain")
+	w.Header().Set("Content-Type", "application/json")
 
 	notes := n.Store.GetAllNotes()
-	_notes := make([]string, 0)
+	json, _ := json.Marshal(notes)
 
-	for _, note := range notes {
-		if strings.TrimSpace(string(note)) != "" {
-			_notes = append(_notes, strings.TrimSpace(string(note)))
-		}
-	}
-
-	notesString := strings.Join(_notes, ", ")
-	fmt.Fprint(w, notesString)
+	fmt.Fprint(w, string(json))
 }
 
 func (n *NotebookServer) showNoteById(w http.ResponseWriter, noteId ID) {
 	/** Find note by ID */
 	note := n.Store.GetNoteById(noteId)
 
-	if note == "" {
+	if note.ID == "" {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprint(w, "Note not found!")
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprint(w, string(note))
+	fmt.Fprint(w, "")
 }
 
 func (n *NotebookServer) addNote(w http.ResponseWriter, note Note) {

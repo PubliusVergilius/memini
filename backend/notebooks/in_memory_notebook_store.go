@@ -1,7 +1,6 @@
 package notebooks
 
 import (
-	"fmt"
 	"strconv"
 	"sync"
 )
@@ -23,15 +22,15 @@ type InMemoryNotebookStore struct {
 	lock sync.RWMutex
 }
 
+/************** Notes ****************/
 func (i *InMemoryNotebookStore) GetAllNotes() []Note {
 	i.lock.RLock()
 	defer i.lock.RUnlock()
-	notes := make([]Note, len(i.Notes))
+	notes := make([]Note, 0)
 
 	for id, note := range i.Notes {
-		if id != "" && note != "" {
-			noteStr := fmt.Sprintf("%s: %s", string(id), string(note))
-			notes = append(notes, Note(noteStr))
+		if id != "" || note.ID != "" {
+			notes = append(notes, note)
 		}
 	}
 	return notes
@@ -50,4 +49,19 @@ func (i *InMemoryNotebookStore) GetNoteById(id ID) Note {
 	i.lock.RLock()
 	defer i.lock.RUnlock()
 	return i.Notes[id]
+}
+
+/************** Profile ****************/
+func (i *InMemoryNotebookStore) GetProfilesByUsername(username string) []Profile {
+	i.lock.RLock()
+	defer i.lock.RUnlock()
+
+	profileTable := make([]Profile, 0)
+	for _, profile := range i.Profile {
+		if profile.Username == username {
+			profileTable = append(profileTable, profile)
+		}
+	}
+
+	return profileTable
 }

@@ -1,22 +1,22 @@
 package notebooks
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
-	"strings"
 	"testing"
 )
 
 func TestGETNotebooks(t *testing.T) {
-	t.Run("get from in memory notebook store", func(t *testing.T) {
+	t.Run("get note by it's id from in memory notebook store", func(t *testing.T) {
 		store := NewInMemoryNotebookStore()
 		server := NewNotebookServer(store)
-		store.Notes["1"] = "teste 1"
-		store.Notes["2"] = "teste 2"
+		store.Notes["1"] = Note{ID: "1", Body: "teste 1", UsernameID: "1"}
+		store.Notes["2"] = Note{ID: "2", Body: "teste 2", UsernameID: "2"}
 
 		tests := []struct {
 			testName           string
@@ -28,19 +28,19 @@ func TestGETNotebooks(t *testing.T) {
 				testName:           "Returns first note",
 				noteId:             "1",
 				expectedHTTPStatus: http.StatusOK,
-				expectedNote:       "teste 1",
+				expectedNote:       Note{ID: "1", Body: "teste 1", UsernameID: "1"},
 			},
 			{
 				testName:           "Returns second note",
 				noteId:             "2",
 				expectedHTTPStatus: http.StatusOK,
-				expectedNote:       "teste 2",
+				expectedNote:       Note{ID: "2", Body: "teste 2", UsernameID: "2"},
 			},
 			{
 				testName:           "Returns 404 on misssing note",
 				noteId:             "3",
 				expectedHTTPStatus: http.StatusNotFound,
-				expectedNote:       "",
+				expectedNote:       Note{},
 			},
 		}
 
@@ -56,22 +56,33 @@ func TestGETNotebooks(t *testing.T) {
 		}
 	})
 
-	t.Run("get all in plain text from in memory store", func(t *testing.T) {
+	t.Run("get all in JSON from in memory store", func(t *testing.T) {
 		store := NewInMemoryNotebookStore()
-		store.Notes["1"] = "teste 1"
-		store.Notes["2"] = "teste 2"
+		store.Notes["1"] = Note{ID: "1", Body: "teste 1", UsernameID: "1"}
+		store.Notes["2"] = Note{ID: "2", Body: "teste 2", UsernameID: "1"}
 
 		server := NewNotebookServer(store)
 
 		request, _ := http.NewRequest("GET", "/notes", nil)
 		response := httptest.NewRecorder()
-		response.Header().Set("Content-Type", "text/plain")
+		response.Header().Set("Content-Type", "application/json")
 
 		server.ServeHTTP(response, request)
 		assertStatus(t, response.Code, http.StatusOK)
-		want := "1: teste 1, 2: teste 2"
+		want, _ := json.Marshal([]Note{
+			{
+				ID:         "1",
+				Body:       "teste 1",
+				UsernameID: "1",
+			},
+			{
+				ID:         "2",
+				Body:       "teste 2",
+				UsernameID: "1",
+			},
+		})
 
-		assertResponseBody(t, response.Body.String(), want)
+		assertResponseBody(t, response.Body.String(), string(want))
 	})
 }
 
@@ -80,50 +91,40 @@ func TestPOSTNotebook(t *testing.T) {
 	store := NewInMemoryNotebookStore()
 	server := NewNotebookServer(store)
 
-	t.Run("it returns accepted on POST a save one", func(t *testing.T) {
-		var note Note = "teste 1"
-		request, _ := http.NewRequest(http.MethodPost, "/notes", strings.NewReader(string(note)))
-		request.Header.Set("Content-Type", "text/plain")
+	t.Run("Store a new note on /notes and return accepted status", func(t *testing.T) {
+		var note Note = Note{ID: "1", Body: "teste 1", UsernameID: "1"}
+		jsonNote, err := json.Marshal(note)
+		if err != nil {
+			t.Fatalf("Error marshaling JSON: %v\n", err)
+		}
+
+		reqBody := bytes.NewBuffer(jsonNote)
+
+		request, _ := http.NewRequest(http.MethodPost, "/notes", reqBody)
+		request.Header.Set("Content-Type", "application/json")
+
 		response := httptest.NewRecorder()
 
 		server.ServeHTTP(response, request)
 
 		assertStatus(t, response.Code, http.StatusAccepted)
-
 		if len(store.Notes) != 1 {
-			t.Fatalf("got %d notes, want %d", len(store.Notes), 1)
+			t.Fatalf("got %d notes, want 1", len(store.Notes))
 		}
 
-		if store.Notes["1"] != note {
-			t.Errorf("did not store correnct note: got %q want %q", store.Notes["1"], note)
+		if !reflect.DeepEqual(store.Notes["1"], note) {
+			t.Fatalf("did not store the correct note got %q, want %q", store.Notes["1"], note)
 		}
+
 	})
 
-	t.Run("it returns accepted on POST a save a second", func(t *testing.T) {
-		var note Note = "teste 2"
-		request, _ := http.NewRequest(http.MethodPost, "/notes", strings.NewReader(string(note)))
-		request.Header.Set("Content-Type", "text/plain")
-		response := httptest.NewRecorder()
-
-		server.ServeHTTP(response, request)
-
-		assertStatus(t, response.Code, http.StatusAccepted)
-
-		if len(store.Notes) != 2 {
-			t.Fatalf("got %d notes, want %d", len(store.Notes), 2)
-		}
-
-		if store.Notes["2"] != note {
-			t.Errorf("did not store correct note: got %q want %q", store.Notes["2"], note)
-		}
-	})
 }
 
 func TestGETProfile(t *testing.T) {
-	/*
-	 */
 	store := NewInMemoryNotebookStore()
 	server := NewNotebookServer(store)
+	store.Profile["1"] = Profile{ID: "1", Username: "Vini"}
+
 	t.Run("it returnts 200 on /profile/", func(t *testing.T) {
 		request, _ := http.NewRequest("get", "/profile", nil)
 		response := httptest.NewRecorder()
