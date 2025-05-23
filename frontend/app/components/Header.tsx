@@ -9,8 +9,8 @@ export default function Header() {
 				  <span className="text-3xl font-bold">Notes</span>
 			  </Link>
 			  <div className="flex gap-8"> 
-			    <Link href={"/users"} className={styleLink("/users")}>Users</Link>
-			    <Link href={"/about"} className={styleLink("/about")}>About</Link>
+			    <Link href={"/users"} className={styleLink("/users")}><span className="text-center text-lg">Help</span></Link>
+			    <Link href={"/about"} className={styleLink("/about")}><span className="text-center text-lg">About</span></Link>
 			  </div> 
 		</header>
 	)
