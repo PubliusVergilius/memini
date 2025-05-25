@@ -5,3 +5,4 @@ Notebooks Go with Next application
 - User profile route
 - Convert to JSON
 - Implement persistence with MongoDB
+- Organize the project folder structure

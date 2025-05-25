@@ -11,6 +11,6 @@ import (
 func main() {
 	port := ":5000"
 	fmt.Printf("Listen on port %s", strings.TrimPrefix(port, ":"))
-	server := notebooks.NewNotebookServer(notebooks.NewInMemoryNotebookStore())
+	server := notebooks.NewNotebookServer()
 	log.Fatal(http.ListenAndServe(port, server))
 }

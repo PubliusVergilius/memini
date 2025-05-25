@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"notebooks/notebooks"
+	"notebooks/notebooks/dto"
 	"reflect"
 	"testing"
 )
@@ -14,33 +16,33 @@ import (
 func TestGETNotebooks(t *testing.T) {
 	t.Run("get note by it's id from in memory notebook store", func(t *testing.T) {
 		store := NewInMemoryNotebookStore()
-		server := NewNotebookServer(store)
-		store.Notes["1"] = Note{ID: "1", Body: "teste 1", UsernameID: "1"}
-		store.Notes["2"] = Note{ID: "2", Body: "teste 2", UsernameID: "2"}
+		server := notebooks.NewNotebookServer(store)
+		store.Notes["1"] = dto.Note{ID: "1", Body: "teste 1", UsernameID: "1"}
+		store.Notes["2"] = dto.Note{ID: "2", Body: "teste 2", UsernameID: "1"}
 
 		tests := []struct {
 			testName           string
-			noteId             ID
+			noteId             dto.ID
 			expectedHTTPStatus int
-			expectedNote       Note
+			expectedNote       dto.Note
 		}{
 			{
 				testName:           "Returns first note",
 				noteId:             "1",
 				expectedHTTPStatus: http.StatusOK,
-				expectedNote:       Note{ID: "1", Body: "teste 1", UsernameID: "1"},
+				expectedNote:       dto.Note{ID: "1", Body: "teste 1", UsernameID: "1"},
 			},
 			{
 				testName:           "Returns second note",
 				noteId:             "2",
 				expectedHTTPStatus: http.StatusOK,
-				expectedNote:       Note{ID: "2", Body: "teste 2", UsernameID: "2"},
+				expectedNote:       dto.Note{ID: "2", Body: "teste 2", UsernameID: "2"},
 			},
 			{
 				testName:           "Returns 404 on misssing note",
 				noteId:             "3",
 				expectedHTTPStatus: http.StatusNotFound,
-				expectedNote:       Note{},
+				expectedNote:       dto.Note{},
 			},
 		}
 
@@ -58,10 +60,10 @@ func TestGETNotebooks(t *testing.T) {
 
 	t.Run("get all in JSON from in memory store", func(t *testing.T) {
 		store := NewInMemoryNotebookStore()
-		store.Notes["1"] = Note{ID: "1", Body: "teste 1", UsernameID: "1"}
-		store.Notes["2"] = Note{ID: "2", Body: "teste 2", UsernameID: "1"}
+		store.Notes["1"] = dto.Note{ID: "1", Body: "teste 1", UsernameID: "1"}
+		store.Notes["2"] = dto.Note{ID: "2", Body: "teste 2", UsernameID: "1"}
 
-		server := NewNotebookServer(store)
+		server := notebooks.NewNotebookServer(store)
 
 		request, _ := http.NewRequest("GET", "/notes", nil)
 		response := httptest.NewRecorder()
@@ -69,7 +71,7 @@ func TestGETNotebooks(t *testing.T) {
 
 		server.ServeHTTP(response, request)
 		assertStatus(t, response.Code, http.StatusOK)
-		want, _ := json.Marshal([]Note{
+		want, _ := json.Marshal([]dto.Note{
 			{
 				ID:         "1",
 				Body:       "teste 1",
@@ -89,10 +91,10 @@ func TestGETNotebooks(t *testing.T) {
 func TestPOSTNewNote(t *testing.T) {
 
 	store := NewInMemoryNotebookStore()
-	server := NewNotebookServer(store)
+	server := notebooks.NewNotebookServer(store)
 
 	t.Run("Store a new note on /notes and return accepted status", func(t *testing.T) {
-		note := Note{ID: "1", Body: "teste 1", UsernameID: "1"}
+		note := dto.Note{ID: "1", Body: "teste 1", UsernameID: "1"}
 
 		request := storeNewNote(t, note)
 		response := httptest.NewRecorder()
@@ -114,8 +116,8 @@ func TestPOSTNewNote(t *testing.T) {
 
 func TestGETProfile(t *testing.T) {
 	store := NewInMemoryNotebookStore()
-	server := NewNotebookServer(store)
-	store.Profile["1"] = Profile{ID: "1", Username: "Vini"}
+	server := notebooks.NewNotebookServer(store)
+	store.Profile["1"] = dto.Profile{ID: "1", Username: "Vini"}
 
 	t.Run("it returnts 200 on /profile/", func(t *testing.T) {
 		request, _ := http.NewRequest("get", "/profile", nil)
@@ -124,7 +126,7 @@ func TestGETProfile(t *testing.T) {
 		server.ServeHTTP(response, request)
 
 		got := getProfileFromResponse(t, response.Body)
-		want := []Profile{
+		want := []dto.Profile{
 			{
 				ID:       "1",
 				Username: "Vini",
@@ -143,7 +145,7 @@ func assertStatus(t testing.TB, got, want int) {
 	}
 }
 
-func storeNewNote(t *testing.T, note Note) *http.Request {
+func storeNewNote(t *testing.T, note dto.Note) *http.Request {
 	jsonNote, err := json.Marshal(note)
 	if err != nil {
 		t.Fatalf("Error marshaling JSON: %v\n", err)
@@ -157,7 +159,7 @@ func storeNewNote(t *testing.T, note Note) *http.Request {
 	return request
 }
 
-func getProfileFromResponse(t testing.TB, body io.Reader) (profile []Profile) {
+func getProfileFromResponse(t testing.TB, body io.Reader) (profile []dto.Profile) {
 	t.Helper()
 	err := json.NewDecoder(body).Decode(&profile)
 
@@ -168,19 +170,19 @@ func getProfileFromResponse(t testing.TB, body io.Reader) (profile []Profile) {
 	return
 }
 
-func assertProfiles(t testing.TB, got, want []Profile) {
+func assertProfiles(t testing.TB, got, want []dto.Profile) {
 	t.Helper()
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got %v want %v", got, want)
 	}
 }
 
-func newGetNotebookRequest(id ID) *http.Request {
+func newGetNotebookRequest(id dto.ID) *http.Request {
 	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/notes/%s", id), nil)
 	return req
 }
 
-func newPostNotebookRequest(_ Note) *http.Request {
+func newPostNotebookRequest(_ dto.Note) *http.Request {
 	req, _ := http.NewRequest(http.MethodPost, "/notes", nil)
 	return req
 }
