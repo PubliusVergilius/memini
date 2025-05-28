@@ -5,12 +5,21 @@ import (
 	"log"
 	"net/http"
 	"notebooks/notebooks"
+	"notebooks/notebooks/database"
 	"strings"
 )
 
 func main() {
-	port := ":5000"
+	port := ":5001"
 	fmt.Printf("Listen on port %s", strings.TrimPrefix(port, ":"))
-	server := notebooks.NewNotebookServer()
+
+	fmt.Println("Connection setup is called")
+	_, client, context, cancel := database.SetupMongoDB()
+
+	defer database.CloseConnection(client, context, cancel)
+
+	store := database.NewNotebookStore()
+
+	server := notebooks.NewNotebookServer(store.NotebookService)
 	log.Fatal(http.ListenAndServe(port, server))
 }
